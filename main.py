@@ -15,6 +15,7 @@ recipe_name = None
 meal_days: int = 0
 all_meals = []
 
+
 class IngWindow(object):
     def __init__(self):
         self.fields = mc.get_headers(meals_wb["Ingredients"])
@@ -374,11 +375,22 @@ def upload_meals(meals):
     print("Uploading...")
     rec_ings = meals.all_ingredients
     print(len(rec_ings))
+    names = []
+    for i, ing in enumerate(rec_ings):
+        if ing.name[0].lower() in names:
+            rec_ings[names.index(ing.name[0])].amount[0] = float(rec_ings[names.index(ing.name[0])].amount[0]) + float(ing.amount[0])
+            rec_ings.pop(i)
+            print("Removed duplicate ingredient")
+        names.append(ing.name[0].lower())
+
     store_ings = mc.get_ingredients(meals_wb['Ingredients'])
     ws1 = meals_wb['ShoppingList']
     headers = mc.get_headers(ws1)
+    ws1.delete_rows(2, ws1.max_row)
     prices = []
     column = ""
+    # for i in range(1, ws1.max_row):
+
     row = ws1.max_row + 1
     for i, rec_ing in enumerate(rec_ings):
         isFound = False
@@ -388,17 +400,17 @@ def upload_meals(meals):
                 print("I found the ingredient!")
                 #print(store_ing.category[0])
                 amount, price, unit = mc.conversion(rec_ing, store_ing, meals_wb['Weights'])
-                if store_ing.category[0] == "Grains" or store_ing.category[0] == "Can" or store_ing.category[0] == "Bottle":
-                    store_ing.category[0] = "Grains/Cans/Bottles"
+                if store_ing.category[0] == "Grains" or store_ing.category[0] == "Can" or \
+                        store_ing.category[0] == "Bottle" or store_ing.category[0] == "Spice":
+                    store_ing.category[0] = "Main aisles"
                 column = headers.index(store_ing.category[0])+1
                 for k in range(1, row+1):
-                    print(f"k = {k}, column = {column}, row = {row}")
                     if ws1.cell(row=k, column=column).value is None:
                         temp_row = k
                         break
                 ws1.cell(row=temp_row, column=column).value = store_ing.name[0]
                 ws1.cell(row=temp_row, column=column+1).value = f"{str(amount)} {unit}"
-                prices.append(price)
+                #prices.append(price)
                 isFound = True
         if not isFound:
             print("I did not find the ingredient")
@@ -415,13 +427,14 @@ def upload_meals(meals):
     new_headers = mc.get_headers(ws2)
     for i, meal in enumerate(all_meals):
         ws2.cell(row=i+2, column=new_headers.index("Meal")+1).value = meal
-
+    """
     total_price = 0
     for i in range(len(prices)):
-        #print(prices[i])
+        print(prices[i])
         prices[i] = float(prices[i])
         total_price += prices[i]
     ws2.cell(row=2, column=new_headers.index("Total")+1).value = total_price
+    """
 
     meals_wb.save(filename)
 

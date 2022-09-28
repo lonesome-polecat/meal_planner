@@ -67,6 +67,7 @@ def get_recipes(worksheet):
 
     return recipes
 
+
 def get_extra(worksheet, header):
     column = worksheet.max_column
     col = 0
@@ -85,6 +86,7 @@ def get_extra(worksheet, header):
         print("Error: Could not find column header '%s'" % header)
         return False
     return extra_info
+
 
 def conversion(rec_ing, store_ing, worksheet=None):
     # from recipe_ingredients to store_ingredients
@@ -114,11 +116,12 @@ def conversion(rec_ing, store_ing, worksheet=None):
 
 def convert_to_lbs(worksheet, rec_ing, price):
     ws1 = worksheet
+    row = ws1.max_row
     for i in range(1, ws1.max_row+1):
         if rec_ing.name[0] == ws1.cell(row=i, column=1).value:
             row = i
             break
-    amount = rec_ing.amount * ws1.cell(row=row, column=3).value
+    amount = float(rec_ing.amount[0]) * ws1.cell(row=row, column=3).value
     price = amount * price
     return amount, "lbs", price
 
