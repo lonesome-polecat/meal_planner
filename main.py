@@ -254,6 +254,92 @@ class MealPlanWindow(object):
                     ent['values'] = data
 
 
+class Category_Frame(object):
+    def __init__(self, name, list):
+        self.name = name
+        self.column_index = None
+        self.frame = None
+        self.list = list
+        self.buttons = []
+
+
+class EditWindow(object):
+    def __init__(self):
+        self.ws = meals_wb["ShoppingList"]
+        self.shopping_dict = {}
+        self.headers = []
+        for i in range(self.ws.max_column):
+            header = self.ws.cell(row=1, column=i+1).value
+            self.headers.append(header)
+            if header == "Amt":
+                continue
+            values = []
+            for j in range(self.ws.max_row):
+                value = self.ws.cell(row=j+2, column=i+1).value
+                if value == "":
+                    break
+                values.append(value)
+            self.shopping_dict.update({header: values})
+        self.frames = []
+
+    def main_window(self):
+        self.root = tk.Tk()
+        self.main_frame = tk.Frame(self.root)
+        self.main_frame.pack(side=tk.TOP)
+        self.button_frame = tk.Frame(self.root)
+        self.button_frame.pack(side=tk.TOP)
+        self.finish_button = tk.Button(self.button_frame, text="Finish", command=lambda: self.finish())
+        self.finish_button.pack(side=tk.RIGHT, padx=10, pady=10)
+        self.add_to_frame()
+        self.root.mainloop()
+
+    def add_to_frame(self):
+        for key, values in self.shopping_dict.items():
+            list = self.get_list_frame(key, values)
+            category_frame = Category_Frame(key, list)
+            self.frames.append(category_frame)
+
+    def get_list_frame(self, header, values):
+        frame = tk.LabelFrame(self.main_frame, text=f"{header}")
+        frame.pack(side=tk.LEFT, padx=10, pady=10)
+        list = tk.Listbox(frame)
+        list.pack(padx=10, pady=10)
+        for i in range(len(values)):
+            list.insert("end", values[i])
+        add_button = tk.Button(frame, text="Add", command=lambda list=list: self.add_item(list))
+        add_button.pack(side=tk.BOTTOM)
+        remove_button = tk.Button(frame, text="Remove", command=lambda list=list: self.remove_item(list, list.selection_get()))
+        remove_button.pack(side=tk.BOTTOM)
+        return list
+
+    def remove_item(self, list, field):
+        index = list.get(0, "end").index(field)
+        list.delete(index)
+
+    def add_item(self, list):
+        self.add_window = tk.Toplevel(self.root)
+        label = tk.Label(self.add_window, text="Add item")
+        label.grid(row=0, column=0, padx=10, pady=10)
+        entry = tk.Entry(self.add_window)
+        entry.grid(row=0, column=1, padx=10, pady=10)
+        button = tk.Button(self.add_window, text="Add", command=lambda list=list: self.update_list(list, entry))
+        button.grid(row=1, column=1, padx=10, pady=10)
+
+    def update_list(self, list, entry):
+        list.insert("end", entry.get())
+        self.add_window.destroy()
+
+    def finish(self):
+        for frame in self.frames:
+            index = self.headers.index(frame.name)
+            items = frame.list.get(0, "end")
+            for i in range(len(items)):
+                self.ws.cell(row=i+2, column=index+1).value = items[i]
+        meals_wb.save(filename)
+        print("Shopping list has been updated")
+        self.root.destroy()
+
+
 def fetch(ent, index=0):
     global store
     global recipe_name
@@ -437,6 +523,8 @@ def upload_meals(meals):
     """
 
     meals_wb.save(filename)
+    edit_window = EditWindow()
+    edit_window.main_window()
 
 
 
