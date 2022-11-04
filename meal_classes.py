@@ -6,7 +6,7 @@ class Ingredient(object):
         self.row = row + 1
         self.item_info = item_columns
         self.headers = headers
-        self.category = ["Other", ""]
+        self.category = ["Frozen / Other", ""]
         for i, header in enumerate(headers):
             if header == "Ingredient":
                 self.name = [item_columns[i], header]

@@ -2,7 +2,8 @@ import openpyxl as xl
 import meal_classes as mc
 import tkinter as tk
 import tkinter.ttk as ttk
-import math
+from PIL import ImageTk, Image
+
 
 ents = []
 filename = None
@@ -187,8 +188,35 @@ class MealPlanWindow(object):
         self.all_recipes = []
         self.all_ingredients = []
 
-
     def main_window(self):
+        self.root = tk.Tk()
+        frame = tk.LabelFrame(self.root)
+        frame.pack(side=tk.TOP, padx=10, pady=10)
+        label = tk.Label(frame, text="Select meals/sides you would like to make")
+        label.pack(side=tk.TOP, padx=10, pady=10)
+        options = mc.get_recipes(meals_wb["Recipes"])
+        ent = ttk.Combobox(frame, values=options)
+        ent.pack(side=tk.TOP, padx=20, pady=10, fill=tk.X)
+        ent.focus_force()
+        add_button_frame = tk.Frame(frame)
+        add_button_frame.pack(side=tk.TOP, fill=tk.BOTH)
+        self.listbox = tk.Listbox(frame)
+        self.listbox.pack(side=tk.TOP, padx=20, pady=10, fill=tk.X)
+        remove_button_frame = tk.Frame(frame)
+        remove_button_frame.pack(side=tk.TOP, fill=tk.BOTH)
+        add_button = tk.Button(add_button_frame, text="Add meal", command=lambda: update_list(self.listbox, ent))
+        add_button.pack(side=tk.RIGHT, padx=20, pady=3)
+        remove_button = tk.Button(remove_button_frame, text="Remove meal", command=lambda: remove_from_list(self.listbox))
+        remove_button.pack(side=tk.RIGHT, padx=20, pady=(3, 10))
+        continue_button_frame = tk.Frame(self.root)
+        continue_button_frame.pack(side=tk.BOTTOM, fill=tk.BOTH)
+        b1 = tk.Button(continue_button_frame, text="Continue",
+                       command=lambda: [self.fetch()])
+        b1.pack(side=tk.BOTTOM, padx=10, pady=15)
+        ent.bind('<Return>', (lambda event: update_list(self.listbox, ent)))
+        # self.root.bind('<Return>', (lambda event: [fetch(ent, 3), root.destroy(), meal_plan()]))
+        self.root.mainloop()
+        """
         self.root = tk.Tk()
         self.root.title("Schedule")
         self.frame = tk.LabelFrame(self.root)
@@ -198,7 +226,7 @@ class MealPlanWindow(object):
         b2 = tk.Button(self.frame, text="Finish", command=lambda: [self.fetch(), self.root.destroy()])
         b2.grid(column=1, padx=10, pady=10)
         self.root.mainloop()
-
+        """
 
     def makeform(self):
         entries = []
@@ -214,8 +242,8 @@ class MealPlanWindow(object):
 
 # Meal Plan Window
     def fetch(self):
-        for entry in self.entries:
-            self.all_recipes.append(entry.get())
+        for meal in self.listbox.get(0, "end"):
+            self.all_recipes.append(meal)
 
         global all_meals
         all_meals = self.all_recipes
@@ -240,6 +268,9 @@ class MealPlanWindow(object):
                         self.all_ingredients.append(my_ing)
                         print(len(self.all_ingredients))
                         j += 1
+
+        self.root.destroy()
+        upload_meals(self)
 
 
     def search(self, ent, options):
@@ -306,10 +337,13 @@ class EditWindow(object):
         list.pack(padx=10, pady=10)
         for i in range(len(values)):
             list.insert("end", values[i])
-        add_button = tk.Button(frame, text="Add", command=lambda list=list: self.add_item(list))
-        add_button.pack(side=tk.BOTTOM)
-        remove_button = tk.Button(frame, text="Remove", command=lambda list=list: self.remove_item(list, list.selection_get()))
-        remove_button.pack(side=tk.BOTTOM)
+        button_frame = tk.Frame(frame)
+        button_frame.pack(side=tk.BOTTOM, fill=tk.BOTH)
+        add_button = tk.Button(button_frame, text="Add", command=lambda list=list: self.add_item(list), anchor="e")
+        add_button.grid(row=0, column=0, pady=5)
+        remove_button = tk.Button(button_frame, text="Remove", anchor="w",
+                                  command=lambda list=list: self.remove_item(list, list.selection_get()))
+        remove_button.grid(row=0, column=1, pady=5)
         return list
 
     def remove_item(self, list, field):
@@ -367,6 +401,7 @@ def store_prompt():
     root.bind('<Return>', (lambda event: [fetch(ent, 1), root.destroy(), add_ingredients()]))
 # In class windows have focus_set()
 
+
 def recipe_name_prompt():
     root = tk.Tk()
     frame = tk.Frame(root)
@@ -381,24 +416,20 @@ def recipe_name_prompt():
     root.bind('<Return>', (lambda event: [fetch(ent, 2), root.destroy(), add_recipe()]))
 
 
-def meal_plan_prompt():
-    root = tk.Tk()
-    frame = tk.Frame(root)
-    frame.pack(side=tk.TOP, padx=5, pady=5)
-    label = tk.Label(frame, text="How many days are you planning for?")
-    label.pack(side=tk.TOP, padx=10, pady=10)
-    ent = tk.Entry(frame)
-    ent.pack(side=tk.TOP, padx=10, pady=10)
-    ent.focus_force()
-    b1 = tk.Button(frame, text="Continue", command=lambda: [fetch(ent, 3), root.destroy(), meal_plan()])
-    b1.pack(side=tk.BOTTOM, padx=10, pady=10)
-    root.bind('<Return>', (lambda event: [fetch(ent, 3), root.destroy(), meal_plan()]))
+def remove_from_list(list):
+    field = list.selection_get()
+    index = list.get(0, "end").index(field)
+    list.delete(index)
+
+
+def update_list(list, entry):
+    list.insert("end", entry.get())
+    entry.delete(0, "end")
 
 
 def meal_plan():
     meals = MealPlanWindow()
     meals.main_window()
-    upload_meals(meals)
 
 
 def add_recipe():
@@ -527,20 +558,26 @@ def upload_meals(meals):
     edit_window.main_window()
 
 
-
-
 def start_window():
     root = tk.Tk()
-    frame = tk.Frame(root)
-    frame.pack(side=tk.TOP, padx=5, pady=5)
-    label = tk.Label(frame, text="Choose an option")
-    label.pack(side=tk.TOP, padx=10, pady=10)
-    b1 = tk.Button(frame, text="Meal Plan", command=lambda: [root.destroy(), meal_plan_prompt()])
-    b2 = tk.Button(frame, text="Add Recipe", command=lambda: [root.destroy(), recipe_name_prompt()])
-    b3 = tk.Button(frame, text="Add Ingredients", command=lambda: [root.destroy(), store_prompt()])
-    b3.pack(side=tk.BOTTOM, padx=5, pady=5)
-    b2.pack(side=tk.BOTTOM, padx=5, pady=5)
-    b1.pack(side=tk.BOTTOM, padx=5, pady=5)
+    root_frame = tk.Frame(root)
+    root_frame.pack(side=tk.TOP, fill=tk.X)
+    img = Image.open("food_image.jpg")
+    ratio = 5.5
+    width = 1980 / ratio
+    height = 1320 / ratio
+    resized = img.resize((int(width), int(height)), Image.ANTIALIAS)
+    ready_img = ImageTk.PhotoImage(resized)
+    image_label = tk.Label(root_frame, image=ready_img)
+    image_label.grid(row=0, column=0, padx=0, pady=0)
+    frame = tk.Frame(root_frame, height=40, padx=20)
+    frame.grid(row=1, column=0, padx=10, pady=10)
+    b1 = tk.Button(frame, text="Meal Plan", anchor="center", command=lambda: [root.destroy(), meal_plan()])
+    b2 = tk.Button(frame, text="Add Recipe", anchor="center", command=lambda: [root.destroy(), recipe_name_prompt()])
+    b3 = tk.Button(frame, text="Add Ingredients", anchor="center", command=lambda: [root.destroy(), store_prompt()])
+    b3.grid(row=0, column=0, padx=20, pady=5)
+    b2.grid(row=0, column=1, padx=20, pady=5)
+    b1.grid(row=0, column=2, padx=20, pady=5)
     root.mainloop()
 
 
