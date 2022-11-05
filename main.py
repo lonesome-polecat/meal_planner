@@ -2,6 +2,7 @@ import openpyxl as xl
 import meal_classes as mc
 import tkinter as tk
 import tkinter.ttk as ttk
+from tkinter import filedialog
 from PIL import ImageTk, Image
 
 
@@ -24,6 +25,11 @@ class IngWindow(object):
     def main_window(self):
         self.root = tk.Tk()
         self.root.title("Ingredient")
+        self.menu_bar = tk.Menu(self.root)
+        self.back_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.back_menu.add_command(label=f"Main menu", command=self.go_back)
+        self.menu_bar.add_cascade(label="Back", menu=self.back_menu)
+        self.root.config(menu=self.menu_bar)
         self.frame = tk.LabelFrame(self.root)
         self.frame.pack()
         self.entries = self.makeform()
@@ -33,7 +39,7 @@ class IngWindow(object):
         b1 = tk.Button(self.frame, text="Add Ingredient", command=lambda: [self.fetch()])
         b1.grid(row=5, column=1, padx=10, pady=10)
         self.root.bind('<Return>', (lambda event: self.fetch()))
-        b2 = tk.Button(self.frame, text="Finish", command=self.root.destroy)
+        b2 = tk.Button(self.frame, text="Finish", command=lambda: [self.go_back()])
         b2.grid(row=5, column=0, padx=10, pady=10)
         self.root.mainloop()
 
@@ -98,6 +104,10 @@ class IngWindow(object):
                     data.append(item)
                     ent['values'] = data
 
+    def go_back(self):
+        self.root.destroy()
+        start_window()
+
 
 class RecipeWindow(object):
     def __init__(self, name):
@@ -109,7 +119,12 @@ class RecipeWindow(object):
 
     def main_window(self):
         self.root = tk.Tk()
-        self.root.title("Ingredient")
+        self.root.title("Recipe")
+        self.menu_bar = tk.Menu(self.root)
+        self.back_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.back_menu.add_command(label=f"Main menu", command=self.go_back)
+        self.menu_bar.add_cascade(label="Back", menu=self.back_menu)
+        self.root.config(menu=self.menu_bar)
         self.frame = tk.LabelFrame(self.root)
         self.frame.pack()
         self.entries = self.makeform()
@@ -119,7 +134,7 @@ class RecipeWindow(object):
         b1 = tk.Button(self.frame, text="Add Ingredient", command=lambda: [self.fetch()])
         b1.grid(row=5, column=1, padx=10, pady=10)
         self.root.bind("<Return>", (lambda event: self.fetch()))
-        b2 = tk.Button(self.frame, text="Finish", command=lambda: [self.finish(), self.root.destroy()])
+        b2 = tk.Button(self.frame, text="Finish", command=lambda: [self.finish(), self.go_back()])
         b2.grid(row=5, column=0, padx=10, pady=10)
         self.root.mainloop()
 
@@ -181,15 +196,25 @@ class RecipeWindow(object):
     def finish(self):
         self.isDone = True
 
+    def go_back(self):
+        self.root.destroy()
+        start_window()
+
 
 class MealPlanWindow(object):
     def __init__(self):
         self.fields = mc.get_headers(meals_wb["Schedule"])
         self.all_recipes = []
         self.all_ingredients = []
+        self.temp_meal_list = []
 
     def main_window(self):
         self.root = tk.Tk()
+        self.menu_bar = tk.Menu(self.root)
+        self.back_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.back_menu.add_command(label=f"Main menu", command=self.go_back)
+        self.menu_bar.add_cascade(label="Back", menu=self.back_menu)
+        self.root.config(menu=self.menu_bar)
         frame = tk.LabelFrame(self.root)
         frame.pack(side=tk.TOP, padx=10, pady=10)
         label = tk.Label(frame, text="Select meals/sides you would like to make")
@@ -202,18 +227,21 @@ class MealPlanWindow(object):
         add_button_frame.pack(side=tk.TOP, fill=tk.BOTH)
         self.listbox = tk.Listbox(frame)
         self.listbox.pack(side=tk.TOP, padx=20, pady=10, fill=tk.X)
+        if len(self.temp_meal_list) > 0:
+            for meal in self.temp_meal_list:
+                self.listbox.insert("end", meal)
         remove_button_frame = tk.Frame(frame)
         remove_button_frame.pack(side=tk.TOP, fill=tk.BOTH)
-        add_button = tk.Button(add_button_frame, text="Add meal", command=lambda: update_list(self.listbox, ent))
+        add_button = tk.Button(add_button_frame, text="Add meal", command=lambda: self.update_list(self.listbox, ent))
         add_button.pack(side=tk.RIGHT, padx=20, pady=3)
-        remove_button = tk.Button(remove_button_frame, text="Remove meal", command=lambda: remove_from_list(self.listbox))
+        remove_button = tk.Button(remove_button_frame, text="Remove meal", command=lambda: self.remove_from_list(self.listbox))
         remove_button.pack(side=tk.RIGHT, padx=20, pady=(3, 10))
         continue_button_frame = tk.Frame(self.root)
         continue_button_frame.pack(side=tk.BOTTOM, fill=tk.BOTH)
         b1 = tk.Button(continue_button_frame, text="Continue",
                        command=lambda: [self.fetch()])
         b1.pack(side=tk.BOTTOM, padx=10, pady=15)
-        ent.bind('<Return>', (lambda event: update_list(self.listbox, ent)))
+        ent.bind('<Return>', (lambda event: self.update_list(self.listbox, ent)))
         # self.root.bind('<Return>', (lambda event: [fetch(ent, 3), root.destroy(), meal_plan()]))
         self.root.mainloop()
         """
@@ -240,8 +268,23 @@ class MealPlanWindow(object):
             entries.append(ent)
         return entries
 
-# Meal Plan Window
+    def remove_from_list(self, list):
+        field = list.selection_get()
+        index = list.get(0, "end").index(field)
+        self.temp_meal_list.pop(index)
+        list.delete(index)
+        print(self.temp_meal_list)
+
+    def update_list(self, list, entry):
+        if entry.get() == "":
+            return None
+        list.insert("end", entry.get())
+        self.temp_meal_list.append(entry.get())
+        entry.delete(0, "end")
+        print(self.temp_meal_list)
+
     def fetch(self):
+        """Adds meals to 'Schedule' and moves to EditWindow"""
         for meal in self.listbox.get(0, "end"):
             self.all_recipes.append(meal)
 
@@ -272,7 +315,6 @@ class MealPlanWindow(object):
         self.root.destroy()
         upload_meals(self)
 
-
     def search(self, ent, options):
         value = ent.get()
         if value == '':
@@ -283,6 +325,10 @@ class MealPlanWindow(object):
                 if str(value).lower() in str(item).lower():
                     data.append(item)
                     ent['values'] = data
+
+    def go_back(self):
+        self.root.destroy()
+        start_window()
 
 
 class Category_Frame(object):
@@ -315,6 +361,11 @@ class EditWindow(object):
 
     def main_window(self):
         self.root = tk.Tk()
+        self.menu_bar = tk.Menu(self.root)
+        self.back_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.back_menu.add_command(label=f"Meals", command=self.back_to_meals)
+        self.menu_bar.add_cascade(label="Back", menu=self.back_menu)
+        self.root.config(menu=self.menu_bar)
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(side=tk.TOP)
         self.button_frame = tk.Frame(self.root)
@@ -373,6 +424,10 @@ class EditWindow(object):
         print("Shopping list has been updated")
         self.root.destroy()
 
+    def back_to_meals(self):
+        self.root.destroy()
+        meals.main_window()
+
 
 def fetch(ent, index=0):
     global store
@@ -425,11 +480,6 @@ def remove_from_list(list):
 def update_list(list, entry):
     list.insert("end", entry.get())
     entry.delete(0, "end")
-
-
-def meal_plan():
-    meals = MealPlanWindow()
-    meals.main_window()
 
 
 def add_recipe():
@@ -520,6 +570,8 @@ def upload_meals(meals):
                 if store_ing.category[0] == "Grains" or store_ing.category[0] == "Can" or \
                         store_ing.category[0] == "Bottle" or store_ing.category[0] == "Spice":
                     store_ing.category[0] = "Main aisles"
+                elif store_ing.category[0].lower() == "frozen" or store_ing.category[0].lower() == "other":
+                    store_ing.category[0] = "Frozen / Other"
                 column = headers.index(store_ing.category[0])+1
                 for k in range(1, row+1):
                     if ws1.cell(row=k, column=column).value is None:
@@ -572,7 +624,7 @@ def start_window():
     image_label.grid(row=0, column=0, padx=0, pady=0)
     frame = tk.Frame(root_frame, height=40, padx=20)
     frame.grid(row=1, column=0, padx=10, pady=10)
-    b1 = tk.Button(frame, text="Meal Plan", anchor="center", command=lambda: [root.destroy(), meal_plan()])
+    b1 = tk.Button(frame, text="Meal Plan", anchor="center", command=lambda: [root.destroy(), meals.main_window()])
     b2 = tk.Button(frame, text="Add Recipe", anchor="center", command=lambda: [root.destroy(), recipe_name_prompt()])
     b3 = tk.Button(frame, text="Add Ingredients", anchor="center", command=lambda: [root.destroy(), store_prompt()])
     b3.grid(row=0, column=0, padx=20, pady=5)
@@ -581,11 +633,102 @@ def start_window():
     root.mainloop()
 
 
-if __name__ == '__main__':
-    filename = r"C:\Users\helam\Box\Bennions\meal_plan.xlsx"
-    try:
-        meals_wb = xl.load_workbook(filename)
-    except:
-        print("Could not find file '%s'" % filename)
+def get_file_path(file_path, message):
+    """
+        A Tkinter Toplevel window that asks the user for input
 
+        A popup that explains to the user that a certain .txt file
+        that contains a certain file path is missing,
+        and prompts the user to route it to the proper file path
+
+        Parameters
+        ---------
+        file_path: list
+            Empty list to hold the file path
+        message: str
+            The main text of the popup window
+        """
+    root = tk.Tk()
+    frame = tk.Frame(root)
+    frame.pack()
+    label = tk.Label(frame, text=message)
+    label.pack(side=tk.TOP, padx=10, pady=10)
+    filename_entry = tk.Entry(frame)
+    filename_entry.pack(side=tk.LEFT, padx=5, pady=10, fill=tk.X)
+    b2 = tk.Button(frame, width=8, text="Save",
+                   command=lambda: [file_path.append(filename_entry.get()), root.destroy()])
+    b2.pack(side=tk.RIGHT, padx=5, pady=10)
+    if "json" in message:
+        b1 = tk.Button(frame, text="Browse...",
+                       command=lambda: [filename_entry.delete(0, "end"), filedialogbox_dir(root, filename_entry)])
+    else:
+        b1 = tk.Button(frame, text="Browse...", command=lambda: [filename_entry.delete(0, "end"), filedialogbox(root, filename_entry)])
+    b1.pack(side=tk.RIGHT, padx=5, pady=10)
+    root.mainloop()
+
+
+def filedialogbox(root: tk.Tk, ent: tk.Entry):
+    """
+    Asks the user to select a file and puts it into the Entry box
+
+    Parameters
+    ---------
+    root: tk.Tk
+        Tkinter Tk widget
+    ent: tk.Entry
+        Tkinter Entry box widget
+    """
+    root.filename = filedialog.askopenfilename(initialdir=r"C:\Users", title="Select an xl file",
+                                               filetypes=(("Excel files", "*.xlsx"), ("all files", "*.*")))
+    ent.insert(0, root.filename)
+
+
+def filedialogbox_dir(root, ent):
+    """
+    Asks the user to select a directory (folder) and puts it into the Entry box
+
+    Parameters
+    ---------
+    root: tk.Tk
+        Tkinter Tk widget
+    ent: tk.Entry
+        Tkinter Entry box widget
+    """
+    root.filename = filedialog.askdirectory(initialdir=r"C:\Users", title="Select a directory")
+    ent.insert(0, root.filename)
+
+
+def check_and_get_file_path():
+    try:
+        with open(r"meal_planner_path.txt", "r+") as f:
+            inv_path = f.read()
+    except:
+        message = "***Could not find meal_planner file***\n\nPlease specify the path to file"
+        print(message)
+        file_path = []
+        get_file_path(file_path, message)
+        inv_path = file_path[0]
+        print(inv_path)
+
+    with open(r"meal_planner_path.txt", "w") as f:
+        f.write(inv_path)
+
+    return inv_path
+
+
+if __name__ == '__main__':
+    filename = check_and_get_file_path()
+
+    while True:  # repeat until the try statement succeeds
+        try:
+            myfile = open(filename, "r+")  # This is just to make sure that the file isn't already open
+            # Because otherwise the program pulls up an error after the user has already input everything
+            myfile.close()
+            break  # exit the loop
+        except IOError:
+            input("Could not open file! Please close %s. Press Enter to retry." % filename)
+            # restart the loop
+
+    meals_wb = xl.load_workbook(filename)
+    meals = MealPlanWindow()
     start_window()
