@@ -115,7 +115,6 @@ class RecipeWindow(object):
         self.fields = mc.get_headers(meals_wb["Recipes"])
         print(self.fields)
         self.all_ingredients = []
-        self.isDone = False
 
     def main_window(self):
         self.root = tk.Tk()
@@ -194,7 +193,10 @@ class RecipeWindow(object):
                     ent['values'] = data
 
     def finish(self):
-        self.isDone = True
+        self.root.destroy()
+        upload_recipe()
+        print("Uploaded recipe")
+        start_window()
 
     def go_back(self):
         self.root.destroy()
@@ -208,7 +210,11 @@ class MealPlanWindow(object):
         self.all_ingredients = []
         self.temp_meal_list = []
 
-    def main_window(self):
+    def main_window(self, edit_window=None):
+        if edit_window is not None:
+            del edit_window
+            self.all_ingredients.clear()
+            self.all_recipes.clear()
         self.root = tk.Tk()
         self.menu_bar = tk.Menu(self.root)
         self.back_menu = tk.Menu(self.menu_bar, tearoff=0)
@@ -292,6 +298,7 @@ class MealPlanWindow(object):
         all_meals = self.all_recipes
         ws1 = meals_wb["Recipes"]
         headers = mc.get_headers(ws1)
+        recipe_count = 0
         for i in range(1, ws1.max_row+1):
             cell = ws1.cell(row=i+1, column=1).value
             print(cell)
@@ -299,18 +306,18 @@ class MealPlanWindow(object):
                 if cell in self.all_recipes:
                     j = i
                     while ws1.cell(row=j+1, column=2).value != None:
-                        print("I got it!!!")
                         row = j+1
                         name = ws1.cell(row=row, column=headers.index("Ingredient")+1).value
                         amount = ws1.cell(row=row, column=headers.index("Amt")+1).value
                         unit = ws1.cell(row=row, column=headers.index("Unit")+1).value
                         item_info = [name, amount, unit]
                         my_ing = mc.Ingredient(item_info, headers[1:])
-                        print("Printing name of ing")
-                        print(my_ing.name)
+                        print(my_ing.name[0])
                         self.all_ingredients.append(my_ing)
-                        print(len(self.all_ingredients))
                         j += 1
+                    recipe_count += 1
+                    if recipe_count == len(self.all_recipes):
+                        break
 
         self.root.destroy()
         upload_meals(self)
@@ -415,6 +422,8 @@ class EditWindow(object):
         self.add_window.destroy()
 
     def finish(self):
+        ws1 = meals_wb['ShoppingList']
+        ws1.delete_rows(2, ws1.max_row)
         for frame in self.frames:
             index = self.headers.index(frame.name)
             items = frame.list.get(0, "end")
@@ -426,7 +435,7 @@ class EditWindow(object):
 
     def back_to_meals(self):
         self.root.destroy()
-        meals.main_window()
+        meals.main_window(self)
 
 
 def fetch(ent, index=0):
@@ -486,9 +495,6 @@ def add_recipe():
     global recipe
     recipe = RecipeWindow(recipe_name)
     recipe.main_window()
-    if recipe.isDone:
-        upload_recipe()
-        print("Uploaded recipe")
 
 
 def add_ingredients():
@@ -541,7 +547,7 @@ def upload_recipe():
 def upload_meals(meals):
     print("Uploading...")
     rec_ings = meals.all_ingredients
-    print(len(rec_ings))
+    print(f"There are {len(rec_ings)} ingredients total")
     names = []
     for i, ing in enumerate(rec_ings):
         if ing.name[0].lower() in names:
@@ -550,7 +556,7 @@ def upload_meals(meals):
             print("Removed duplicate ingredient")
         names.append(ing.name[0].lower())
 
-    store_ings = mc.get_ingredients(meals_wb['Ingredients'])
+    all_ings = mc.get_ingredients(meals_wb['Ingredients'])
     ws1 = meals_wb['ShoppingList']
     headers = mc.get_headers(ws1)
     ws1.delete_rows(2, ws1.max_row)
@@ -561,23 +567,22 @@ def upload_meals(meals):
     row = ws1.max_row + 1
     for i, rec_ing in enumerate(rec_ings):
         isFound = False
-        for j, store_ing in enumerate(store_ings):
-            store_ing.category[0] = store_ing.category[0].capitalize()
-            if store_ing.name[0].lower() == rec_ing.name[0].lower():
-                print("I found the ingredient!")
+        for j, ingredient in enumerate(all_ings):
+            ingredient.category[0] = ingredient.category[0].capitalize()
+            if ingredient.name[0].lower() == rec_ing.name[0].lower():
                 #print(store_ing.category[0])
-                amount, price, unit = mc.conversion(rec_ing, store_ing, meals_wb['Weights'])
-                if store_ing.category[0] == "Grains" or store_ing.category[0] == "Can" or \
-                        store_ing.category[0] == "Bottle" or store_ing.category[0] == "Spice":
-                    store_ing.category[0] = "Main aisles"
-                elif store_ing.category[0].lower() == "frozen" or store_ing.category[0].lower() == "other":
-                    store_ing.category[0] = "Frozen / Other"
-                column = headers.index(store_ing.category[0])+1
+                amount, price, unit = mc.conversion(rec_ing, ingredient, meals_wb['Weights'])
+                if ingredient.category[0] == "Grains" or ingredient.category[0] == "Can" or \
+                        ingredient.category[0] == "Bottle" or ingredient.category[0] == "Spice":
+                    ingredient.category[0] = "Main aisles"
+                elif ingredient.category[0].lower() == "frozen" or ingredient.category[0].lower() == "other":
+                    ingredient.category[0] = "Frozen / Other"
+                column = headers.index(ingredient.category[0])+1
                 for k in range(1, row+1):
                     if ws1.cell(row=k, column=column).value is None:
                         temp_row = k
                         break
-                ws1.cell(row=temp_row, column=column).value = store_ing.name[0]
+                ws1.cell(row=temp_row, column=column).value = ingredient.name[0]
                 ws1.cell(row=temp_row, column=column+1).value = f"{str(amount)} {unit}"
                 #prices.append(price)
                 isFound = True
@@ -593,6 +598,7 @@ def upload_meals(meals):
         row += 1
 
     ws2 = meals_wb['Schedule']
+    ws2.delete_rows(2, ws2.max_row)
     new_headers = mc.get_headers(ws2)
     for i, meal in enumerate(all_meals):
         ws2.cell(row=i+2, column=new_headers.index("Meal")+1).value = meal

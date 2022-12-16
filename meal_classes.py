@@ -90,8 +90,8 @@ def get_extra(worksheet, header):
 
 def conversion(rec_ing, store_ing, worksheet=None):
     # from recipe_ingredients to store_ingredients
-    print("Store ingredient price is " + str(store_ing.price[0]))
-    print("Recipe amount is " + str(rec_ing.amount[0]))
+    # print("Store ingredient price is " + str(store_ing.price[0]))
+    # print("Recipe amount is " + str(rec_ing.amount[0]))
     amount = float(rec_ing.amount[0])
     store_ing.price[0] = float(store_ing.price[0])
     if rec_ing.unit[0] == "can" and store_ing.unit[0] == "can":
